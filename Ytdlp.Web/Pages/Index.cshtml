@@ -1,0 +1,26 @@
+@page "/"
+@using Ytdlp.Web.Data
+@inject YtdlpContext context;
+
+<input id="sourceUrlInput" placeholder="https://youtube.com/watch?v=xvFZjo5PgG0"/>
+<button id="submitMp3">MP3</button>
+<button id="submitMp4">MP4</button>
+
+<hr/>
+
+@{
+    var latestContentQuery = context.Content
+        .OrderByDescending(c => c.DownloadDate)
+        .Take(10);
+    
+    if (!HttpContext.Request.Cookies.TryGetValue("IsUserAdult", out var isAdult) || isAdult != "true")
+        latestContentQuery = latestContentQuery.Where(c => !c.IsAdultContent);
+    
+    var latestContent = latestContentQuery.ToList();
+    foreach (var content in latestContent)
+    {
+        <p><a href="/@content.Id">@content.Title</a></p>
+    }
+}
+
+<script src="js/pageSpecific/index.js"></script>
