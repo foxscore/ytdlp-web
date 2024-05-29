@@ -9,6 +9,12 @@ class Program
 {
     public static void Main(string[] args)
     {
+        if (!Directory.Exists(Paths.DataPath))
+            Directory.CreateDirectory(Paths.DataPath);
+        if (!Directory.Exists(Paths.ContentPath))
+            Directory.CreateDirectory(Paths.ContentPath);
+        if (!Directory.Exists(Paths.ThumbnailsPath))
+            Directory.CreateDirectory(Paths.ThumbnailsPath);
         CreateHostBuilder(args).Build().Run();
     }
 

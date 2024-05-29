@@ -25,11 +25,13 @@ public class DownloadProgressHub : Hub
             || contentDownloader.Progress.State is DownloadState.Success or DownloadState.Error
         )
         {
+            Console.WriteLine("Removed from SignalR group");
             await Clients.Client(Context.ConnectionId).SendCoreAsync("refreshPage", []);
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, contentGuid);
         }
         else
         {
+            Console.WriteLine("Sending initial update");
             await Clients.Client(Context.ConnectionId).SendCoreAsync("updateProgress", BuildArgs(contentDownloader.Progress, contentDownloader.ProgressRevision));
         }
     }

@@ -4,11 +4,7 @@ namespace Ytdlp.Web;
 
 public static class Paths
 {
-#if DEBUG
-    public static readonly string DataPath = Path.GetFullPath("./bin_data");
-#else
-    public static readonly string DataPath = "/data";
-#endif
+    public static readonly string DataPath = Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER") == "true" ? "/data" : Path.GetFullPath("./bin_data");
     public static readonly string ContentPath = $"{DataPath}/content";
     public static readonly string ThumbnailsPath = $"{DataPath}/thumbnails";
     

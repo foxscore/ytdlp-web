@@ -20,9 +20,6 @@ public class Startup
         services.AddControllersWithViews();
         services.AddRazorPages();
         services.AddSignalR();
-        
-        if (!EF.IsDesignTime)
-            services.AddSingleton<ContentDownloaderContextHolder>();
     }
 
     public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
@@ -48,7 +45,6 @@ public class Startup
             e.MapHub<DownloadProgressHub>("/hubs/downloadProgress");
         });
 
-        // Ensure that the static service gets created
-        app.ApplicationServices.GetService<ContentDownloaderContextHolder>();
+        app.InitializeContentDownloader();
     }
 }

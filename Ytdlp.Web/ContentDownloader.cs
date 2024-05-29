@@ -11,36 +11,45 @@ using Ytdlp.Web.Hubs;
 
 namespace Ytdlp.Web;
 
-public class ContentDownloaderContextHolder
+public static class ContentDownloaderContextHolder
 {
-    internal static IHubContext<DownloadProgressHub> Hub { get; private set; } = null!;
+    private static IHubContext<DownloadProgressHub> Hub { get; set; } = null!;
     internal static YtdlpContext Context { get; private set; } = null!;
     internal static readonly object ContextWriteLock = new();
 
-    public ContentDownloaderContextHolder(IHubContext<DownloadProgressHub> hub, YtdlpContext context)
+    public static IApplicationBuilder InitializeContentDownloader(this IApplicationBuilder app)
     {
-        Hub = hub;
-        Context = context;
+        var scope = app.ApplicationServices.CreateScope();
+        
+        Hub = scope.ServiceProvider.GetService<IHubContext<DownloadProgressHub>>()!;
+        Context = scope.ServiceProvider.GetService<YtdlpContext>()!;
+
+        return app;
     }
 
-    public static async Task SendPageReload(string contentGuid) => await Hub.Clients.Group(contentGuid).SendCoreAsync("refreshPage", []);
+    public static async Task SendPageReload(string contentGuid) => await Hub.Clients.Group(contentGuid).SendCoreAsync("reloadPage", []);
 
+    private static DownloadProgress? _previousProgress = null;
     public static async Task SendProgressUpdate(string contentGuid, DownloadProgress progress, int progressRevision)
     {
-        Console.WriteLine($"Sending update: {contentGuid}, '{progress.Data}', {progress.Progress}, '{progress.ETA}', {progressRevision}, '{progress.State.ToString()}'");
-        
-        switch (progress.State)
+        if (_previousProgress is not null)
         {
-            case DownloadState.Success:
-                await SendPageReload(contentGuid);
-                break;
-            case DownloadState.Error:
-                await Hub.Clients.Group(contentGuid).SendCoreAsync("downloadError", []);
-                break;
-            default:
-                await Hub.Clients.Group(contentGuid).SendCoreAsync("updateProgress", DownloadProgressHub.BuildArgs(progress, progressRevision));
-                break;
+            if (
+                Math.Abs(progress.Progress - _previousProgress.Progress) < 0.0001f
+                && progress.State == _previousProgress.State
+                && progress.Data == _previousProgress.Data
+                && progress.ETA == _previousProgress.ETA
+            ) return;
         }
+        _previousProgress = progress;
+        
+        Console.WriteLine($"Sending update: {contentGuid}, '{progress.Data}', {progress.Progress}, '{progress.ETA}', {progressRevision}, '{progress.State.ToString()}'");
+        await Hub.Clients.Group(contentGuid).SendCoreAsync("updateProgress", DownloadProgressHub.BuildArgs(progress, progressRevision));
+    }
+
+    public static async Task SendError(string contentGuid, string error)
+    {
+        await Hub.Clients.Group(contentGuid).SendCoreAsync("downloadError", [ error ]);
     }
 }
 
@@ -185,7 +194,7 @@ public class ContentDownloader : Content
                 _ => throw new ArgumentOutOfRangeException(),
             };
             if (!result.Success)
-                return Result<Content>.Failure("Failed to download content:\n\t" + result.ErrorOutput.Aggregate((left, right) => $"{left}\n\t {right}"));
+                throw new Exception("Failed to download content:\n\t" + result.ErrorOutput.Aggregate((left, right) => $"{left}\n\t {right}"));
             Console.WriteLine($"{Id} : Got it, parsing");
             var filePath = result.Data!;
             Size = new FileInfo(filePath).Length;
@@ -217,6 +226,7 @@ public class ContentDownloader : Content
                 ++ProgressRevision
             );
             Console.WriteLine($"{Id} : All done");
+            await ContentDownloaderContextHolder.SendPageReload(Id);
             return Result<Content>.Success(this);
         }
         catch (Exception e)
@@ -231,11 +241,7 @@ public class ContentDownloader : Content
                 if (File.Exists("/tmp/" + ThumbnailAssetGuid))
                     File.Delete("/tmp/" + ThumbnailAssetGuid);
             }).Start();
-            await ContentDownloaderContextHolder.SendProgressUpdate(
-                Id,
-                Progress = new DownloadProgress(DownloadState.Error, data: e.Message),
-                ++ProgressRevision
-            );
+            await ContentDownloaderContextHolder.SendError(Id, e.Message);
             return Result<Content>.Failure(e);
         }
     }
