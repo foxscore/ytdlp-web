@@ -2,12 +2,12 @@ using System.Text.RegularExpressions;
 
 namespace Ytdlp.Web.Extensions;
 
-public static class StringExtensions
+public static partial class StringExtensions
 {
     public static string ToFilename(this string name, string extension)
     {
         // 1. Normalize and validate the extension
-        extension = extension.TrimStart('.').ToLower(); 
+        extension = extension.TrimStart('.').ToLower();
         if (extension.Length >= 128)
         {
             throw new ArgumentException("Extension too long.", nameof(extension));
@@ -28,4 +28,15 @@ public static class StringExtensions
         // 4. Combine and return the filename
         return $"{safeName}.{extension}";
     }
+
+    public static string SplitOnUpperCase(this string input)
+    {
+        // Regex pattern: 
+        //  - Lookbehind for non-uppercase letter or start of string
+        //  - Match an uppercase letter
+        return SplitOnUpperCaseRegex().Replace(input, "-$0");
+    }
+
+    [GeneratedRegex(@"(?<!^|\p{Lu})\p{Lu}")]
+    private static partial Regex SplitOnUpperCaseRegex();
 }

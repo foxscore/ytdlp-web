@@ -1,26 +1,148 @@
 @page "/"
 @using Ytdlp.Web.Data
+@using Ytdlp.Web.Extensions
 @inject YtdlpContext context;
 
-<input id="sourceUrlInput" placeholder="https://youtube.com/watch?v=xvFZjo5PgG0"/>
-<button id="submitMp3">MP3</button>
-<button id="submitMp4">MP4</button>
-
-<hr/>
-
-@{
-    var latestContentQuery = context.Content
-        .OrderByDescending(c => c.DownloadDate)
-        .Take(10);
-    
-    if (!HttpContext.Request.Cookies.TryGetValue("IsUserAdult", out var isAdult) || isAdult != "true")
-        latestContentQuery = latestContentQuery.Where(c => !c.IsAdultContent);
-    
-    var latestContent = latestContentQuery.ToList();
-    foreach (var content in latestContent)
-    {
-        <p><a href="/@content.Id">@content.Title</a></p>
+<style>
+    a:hover {
+        text-decoration: none;
     }
-}
+    #sourceUrlInput {
+        color: var(--white);
+    }
+    #sourceUrlInput:focus {
+        background: transparent !important;
+    }
+    .adult-thumbnail {
+        filter: blur(12px) grayscale(1);
+        transition: all 0.2s;
+    }
+    .adult-thumbnail:hover {
+        filter: blur(0)  grayscale(0);
+    }
+</style>
+
+<div class="form-group row">
+    <div class="col">
+        <input id="sourceUrlInput" class="form-control" placeholder="https://youtube.com/watch?v=xvFZjo5PgG0"/>
+    </div>
+    <div class="col-auto btn-group ps-0">
+        <button id="submitMp3" class="btn btn-outline-primary text-light col-6">
+            <i class="fa fa-music"></i><span class="d-none d-md-inline ms-2">Audio</span>
+        </button>
+        <button id="submitMp4" class="btn btn-outline-primary text-light col-6">
+            <i class="fa fa-video"></i><span class="d-none d-md-inline ms-2">Video</span>
+        </button>
+    </div>
+</div>
+
+<br/>
+
+<h3>Recent downloads</h3>
+@{
+    var isUserAdult = HttpContext.Request.Cookies.TryGetValue("IsUserAdult", out var isUserAdultString) && isUserAdultString == "true";
+    var latestContent = context.Content
+        .Where(c => !c.IsAdultContent || isUserAdult)
+        .OrderByDescending(c => c.DownloadDate)
+        .Take(10)
+        .ToList();
+
+    <div class="row">
+        @foreach (var content in latestContent)
+        {
+            var cardTheme = content.IsAdultContent ? "danger" : "primary";
+            var adultThumbnailClass = content.IsAdultContent ? "adult-thumbnail" : "";
+            <div class="col-12 col-xxl-6 d-flex flex-column">
+                <div class="card border-@cardTheme mb-3" style="cursor: pointer" data-content-id="@content.Id">
+                    <div class="row g-0">
+                        <div class="d-none d-md-block col-md-4 col-lg-3 col-xxl-5" style="overflow: hidden">
+                            @if (content.ThumbnailAssetGuid is not null)
+                            {
+                                <img class="img-fluid rounded-start @adultThumbnailClass" src="/@content.Id/thumbnail" alt="Content Thumbnail"/>
+                            }
+                            else
+                            {
+                                <img class="img-fluid rounded-start" src="/no-thumbnail.png" alt="No Content Thumbnail"/>
+                            }
+                        </div>
+                        <div class="col col-md-8 col-lg-9 col-xxl-7">
+                            <div class="card-body">
+                                <a href="/@content.Id">
+                                    <h5 class="card-title text-@cardTheme fs-5 mb-0">@content.Title</h5>
+                                </a>
+                                <span class="card-text text-light fs-6">@content.ChannelName</span>
+                                <div>
+                                    <span class="badge mt-1 text-bg-primary p-2">
+                                        <i class="fa fa-globe me-1"></i>
+                                        @content.Source
+                                    </span>
+                                    <span class="badge mt-1 text-bg-secondary p-2">
+                                        @if (content.Type == ContentType.Audio)
+                                        {
+                                            <i class="fa fa-music me-1"></i>
+                                        }
+                                        else
+                                        {
+                                            <i class="fa fa-video me-1"></i>
+                                        }
+                                        @content.Type.ToString()
+                                    </span>
+                                    @if (content.IsAdultContent)
+                                    {
+                                        <span class="badge mt-1 text-bg-danger p-2">
+                                            <i class="fa fa-hand-heart me-1"></i>
+                                            Adult content
+                                        </span>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <br/>
+
+    <div class="card border-danger ps-0 form-check form-switch">
+        <div class="card-body">
+            <input type="checkbox" role="switch"
+                   class="form-check-input me-1 ms-0"
+                   onclick="toggleIsUserAdult()"
+                   style="cursor: pointer"
+                   @if (isUserAdult)
+                   {
+                       <text>checked</text>
+                   }/>
+            <label class="card-text text-light ms-5">
+                I am over 18 years of age, and over the legal limit, in terms of age, in my country to view adult or pornographic content
+            </label>
+        </div>
+    </div>}
+
+<script>
+    function toggleIsUserAdult() {
+        setCookie('IsUserAdult', '@((!isUserAdult).ToString().ToLower())', 36500);
+        window.scrollTo({
+            top: 0,
+            left: 0,
+            behavior: 'instant'
+        });
+        document.location.reload();
+    }
+    const elementsWithContentId = document.querySelectorAll('[data-content-id]');
+    elementsWithContentId.forEach(element => {
+        element.addEventListener('click', event => {
+            event.preventDefault();
+            window.location.href = `/${element.dataset.contentId}`;
+        });
+        element.addEventListener("auxclick", event => {
+            if (event.which !== 2) return;
+            event.preventDefault();
+            window.open(`/${element.dataset.contentId}`, '_blank');
+        });
+    });
+</script>
 
 <script src="js/pageSpecific/index.js"></script>

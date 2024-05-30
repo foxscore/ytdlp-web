@@ -26,10 +26,18 @@ FROM base AS final
 
 # Install dependencies
 RUN apt update
-RUN apt install -y ffmpeg yt-dlp
+RUN apt install -y ffmpeg yt-dlp bzip2
+
+# Install PhantomJS
+WORKDIR /tmp
+RUN apt install -y wget
+RUN wget -O phantomjs.tar.bz2 https://bitbucket.org/ariya/phantomjs/downloads/phantomjs-2.1.1-linux-x86_64.tar.bz2
+RUN tar -xjf phantomjs.tar.bz2
+RUN mv phantomjs-2.1.1-linux-x86_64 /usr/local/share
+RUN ln -sf /usr/local/share/phantomjs-2.1.1-linux-x86_64/bin/phantomjs /usr/local/bin
+RUN rm phantomjs.tar.bz2
 
 # Install app
-WORKDIR /app
 COPY --from=publish /app/publish .
 
 # Configure & run

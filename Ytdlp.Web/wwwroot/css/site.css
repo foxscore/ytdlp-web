@@ -1,0 +1,6 @@
+img {
+    aspect-ratio: 16 / 9; /* Sets the aspect ratio */
+    width: 100%;          /* Ensures image fills container width */
+    height: auto;         /* Maintains aspect ratio */
+    object-fit: cover;    /* Crops/covers the image to fit the container */
+}

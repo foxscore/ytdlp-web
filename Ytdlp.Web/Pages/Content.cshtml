@@ -1,10 +1,15 @@
 @page "/{contentId}"
 @using Ytdlp.Web.Data
+@using Ytdlp.Web.Extensions
 @model Ytdlp.Web.Pages.ContentModel
+
+@{
+    var isUserAdult = HttpContext.Request.Cookies.TryGetValue("IsUserAdult", out var isUserAdultString) && isUserAdultString == "true";
+}
 
 @if (
     (Model.YtdlpContent is { IsAdultContent: true } || Model.Downloader is { IsAdultContent: true })
-    && (!HttpContext.Request.Cookies.TryGetValue("IsUserAdult", out var isAdult) || isAdult != "true")
+    && !isUserAdult
 )
 {
     <script>
@@ -15,48 +20,121 @@
             else
                 button.setAttribute('disabled', '');   
         }
+        function toggleIsUserAdult() {
+            setCookie('IsUserAdult', 'true', 36500);
+            window.scrollTo({
+                top: 0,
+                left: 0,
+                behavior: 'instant'
+            });
+            document.location.reload();
+        }
     </script>
 
-    <div>
-        <h1>
-            <i class="fa fa-hand-heart"></i>
-        </h1>
-        <h3>ADULT CONTENT</h3>
-        <hr/>
-        <label><input type="checkbox" onclick="toggleConsentButton()"/>I am over 18 years of age, and over the legal limit, in terms of age, in my country to view adult or pornographic content.</label>
-        <button id="iAmAnAdultButton" disabled onclick="setCookie('IsUserAdult', 'true', 36500);document.location.reload()">Continue</button>
+    <button class="btn btn-outline-light btn-lg" onclick="window.location.href = '/'">
+        <i class="fa fa-chevron-left"></i> Back
+    </button>
+
+    <div class="card border-danger text-danger form-check form-switch mt-4">
+        <div class="card-body">
+            <h1>
+                <i class="fa fa-hand-heart"></i>
+                ADULT CONTENT
+            </h1>
+            
+            <input type="checkbox" role="switch"
+                   class="form-check-input me-1 ms-0"
+                   onclick="toggleIsUserAdult()"
+                   style="cursor: pointer"/>
+            <label class="card-text text-light ms-5">
+                I am over 18 years of age, and over the legal limit, in terms of age, in my country to view adult or pornographic content
+            </label>
+        </div>
     </div>
+    
     return;
 }
 
 
 @if (Model.Downloader is not null)
 {
-    @if (Model.Downloader.DidDownloadMetadata)
+    var cardTheme = Model.Downloader.DidDownloadMetadata && Model.Downloader.IsAdultContent ? "danger" : "primary";
+    if (Model.Downloader.DidDownloadMetadata)
     {
         ViewData["Title"] = Model.Downloader.Title;
         if (!string.IsNullOrEmpty(Model.Downloader.ChannelName))
             ViewData["Title"] += $" {(Model.Downloader.Type == ContentType.Audio ? "by" : "—")} {Model.Downloader.ChannelName}";
-        
-        <h3>@Model.Downloader.Title</h3>
-        <span>@Model.Downloader.Type.ToString()</span>
-        @if (Model.Downloader.IsAdultContent)
-        {
-            <span><i class="fa fa-hand-heart"></i> Adult Content</span>
-        }
-        <span>@Model.Downloader.RequestedUri</span> @* Smaller, grey *@
-        <hr/>
+
+        <button class="btn btn-outline-@cardTheme text-light btn-lg" onclick="window.location.href = '/'">
+            <i class="fa fa-chevron-left"></i> Back
+        </button>
+
+        <div class="card border-@cardTheme mt-4">
+            <div class="row g-0">
+                <div class="col-12 col-lg-3">
+                    <img class="img-fluid rounded" src="/no-thumbnail.png" alt="No Content Thumbnail"/>
+                </div>
+
+                <div class="col-12 col-lg-9">
+                    <div class="card-body">
+                        <h3 class="text-@cardTheme mb-0">@Model.Downloader.Title</h3>
+                        <span class="card-text text-light fs-6">@Model.Downloader.ChannelName</span>
+
+                        <div class="mt-2">
+                            <span class="badge text-bg-primary mt-1 p-2">
+                                <i class="fa fa-globe me-1"></i>
+                                @Model.Downloader.Source
+                            </span>
+                            <span class="badge text-bg-secondary mt-1 p-2">
+                                @if (Model.Downloader.Type == ContentType.Audio)
+                                {
+                                    <i class="fa fa-music me-1"></i>
+                                }
+                                else
+                                {
+                                    <i class="fa fa-video me-1"></i>
+                                }
+                                @Model.Downloader.Type.ToString()
+                            </span>
+                            @if (Model.Downloader.Length is not null)
+                            {
+                                var timeSpan = TimeSpan.FromSeconds(Model.Downloader.Length.Value);
+                                <span class="badge text-bg-secondary mt-1 p-2">
+                                    <i class="fa fa-clock me-1"></i>
+                                    @(timeSpan.ToString(timeSpan.Hours > 0 ? @"hh\:mm\:ss" : @"mm\:ss"))
+                                </span>
+                            }
+                            @if (Model.Downloader.IsAdultContent)
+                            {
+                                <span class="badge text-bg-danger mt-1 p-2">
+                                    <i class="fa fa-hand-heart me-1"></i>
+                                    Adult content
+                                </span>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     }
 
-    <span id="downloadStatus">Loading...</span>
-    <div class="progress" role="progressbar" aria-label="Animated striped example" aria-valuenow="75" aria-valuemin="0" aria-valuemax="100">
-        <div id="downloadProgress" class="progress-bar progress-bar-striped progress-bar-animated" style="width: 0"></div>
-    </div>
-    <span id="downloadETA"></span>
+    var progress = (int)Math.Floor(Model.Downloader.Progress.Progress * 100);
 
+    <div class="card border-@cardTheme mt-4">
+        <div class="card-body">
+            <h3 id="downloadStatus" class="text-@cardTheme">Loading...</h3>
+            <div id="downloadProgressContainer" class="progress" role="progressbar" aria-label="Animated striped example" aria-valuenow="75" aria-valuemin="0" aria-valuemax="100">
+                <div id="downloadProgress" class="progress-bar progress-bar-striped progress-bar-animated bg-@cardTheme" style="width: @progress%"></div>
+            </div>
+            <span id="downloadETA" class="text-light"></span>
+        </div>
+    </div>
+
+    <!--suppress EqualityComparisonWithCoercionJS -->
     <script>
         document.addEventListener("DOMContentLoaded", function(event) {
             const statusElement = document.getElementById('downloadStatus');
+            const progressContainerElement = document.getElementById('downloadProgressContainer');
             const progressElement = document.getElementById('downloadProgress');
             const etaElement = document.getElementById('downloadETA');
             
@@ -76,13 +154,18 @@
                 window.location.href = '/';
             });
             connection.on('updateProgress', (revision, state, progress, eta, data) => {
-                console.log('Incoming update: ' + revision);
                 if (lastRevision >= revision) return;
                 lastRevision = revision;
                 if (data === '') data = state;
                 statusElement.innerText = data;
                 progressElement.style.width = `${Math.floor(parseFloat(progress) * 100).toString()}%`;
-                etaElement.innerText = eta;
+                if (eta == '') {
+                    etaElement.innerText = '';
+                    progressContainerElement.classList.remove('mb-3');
+                } else {
+                    etaElement.innerText = 'ETA ' + eta;
+                    progressContainerElement.classList.add('mb-3');
+                }
             });
             
             connection.start()
@@ -102,32 +185,100 @@ else if (Model.YtdlpContent is not null)
     ViewData["Title"] = Model.YtdlpContent.Title;
     if (!string.IsNullOrEmpty(Model.YtdlpContent.ChannelName))
         ViewData["Title"] += $" {(Model.YtdlpContent.Type == ContentType.Audio ? "by" : "—")} {Model.YtdlpContent.ChannelName}";
-    
-    <h3>@Model.YtdlpContent.Title</h3>
-    <span>@Model.YtdlpContent.Type.ToString()</span>
-    @if (Model.YtdlpContent.IsAdultContent)
-    {
-        <span><i class="fa fa-hand-heart"></i> Adult Content</span>
-    }
+    var cardTheme = Model.YtdlpContent.IsAdultContent ? "danger" : "primary";
 
-    <span>@Model.YtdlpContent.RequestedUri</span> @* Smaller, grey *@
-    @if (Model.YtdlpContent.ThumbnailAssetGuid is not null)
-    {
-        <img width="480px" height="270px" src="/@Model.ContentId/thumbnail" alt="Content Thumbnail"/>
-    }
+    <button class="btn btn-outline-@cardTheme text-light btn-lg" onclick="window.location.href = '/'">
+        <i class="fa fa-chevron-left"></i> Back
+    </button>
 
-    <button onclick="window.open('/@Model.ContentId/media', '_blank')">
-        <i class="fa fa-play"></i>
-    </button>
-    <button onclick="window.location.href = '/@Model.ContentId/download'">
-        <i class="fa fa-download"></i>
-    </button>
-    <button onclick="copyToClipboard(`${getBaseURL()}/@Model.ContentId/media`)">
-        <i class="fa fa-copy"></i>
-    </button>
-    <button onclick="copyToClipboard(`${getBaseURL()}/@Model.ContentId`)">
-        <i class="fa fa-share"></i>
-    </button>
+    <div class="card border-@cardTheme mt-4">
+        <div class="row g-0">
+            <div class="col-12 col-lg-3">
+                @if (Model.YtdlpContent.ThumbnailAssetGuid is not null)
+                {
+                    <img class="img-fluid rounded" src="/@Model.ContentId/thumbnail" alt="Content Thumbnail"/>
+                }
+                else
+                {
+                    <img class="img-fluid rounded" src="/no-thumbnail.png" alt="No Content Thumbnail"/>
+                }
+            </div>
+
+            <div class="col-12 col-lg-9">
+                <div class="card-body">
+                    <h3 class="text-@cardTheme mb-0">@Model.YtdlpContent.Title</h3>
+                    <span class="card-text text-light fs-6">@Model.YtdlpContent.ChannelName</span>
+
+                    <div class="mt-2">
+                        <span class="badge text-bg-primary mt-1 p-2">
+                            <i class="fa fa-globe me-1"></i>
+                            @Model.YtdlpContent.Source
+                        </span>
+                        <span class="badge text-bg-secondary mt-1 p-2">
+                            @if (Model.YtdlpContent.Type == ContentType.Audio)
+                            {
+                                <i class="fa fa-music me-1"></i>
+                            }
+                            else
+                            {
+                                <i class="fa fa-video me-1"></i>
+                            }
+                            @Model.YtdlpContent.Type.ToString()
+                        </span>
+                        <span class="badge text-bg-secondary mt-1 p-2">
+                            <i class="fa fa-compact-disc me-1"></i>
+                            @Model.YtdlpContent.Size.ToByteSize()
+                        </span>
+                        @if (Model.YtdlpContent.Length is not null)
+                        {
+                            var timeSpan = TimeSpan.FromSeconds(Model.YtdlpContent.Length.Value);
+                            <span class="badge text-bg-secondary mt-1 p-2">
+                                <i class="fa fa-clock me-1"></i>
+                                @(timeSpan.ToString(timeSpan.Hours > 0 ? @"hh\:mm\:ss" : @"mm\:ss"))
+                            </span>
+                        }
+                        @if (Model.YtdlpContent.IsAdultContent)
+                        {
+                            <span class="badge text-bg-danger mt-1 p-2">
+                                <i class="fa fa-hand-heart me-1"></i>
+                                Adult content
+                            </span>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12 col-sm-auto btn-group btn-group-lg mt-4">
+            <button class="btn btn-outline-@cardTheme text-light" onclick="window.open('/@Model.ContentId/media', '_blank')">
+                <i class="fa fa-play me-1"></i>
+                @if (Model.YtdlpContent.Type == ContentType.Audio)
+                {
+                    <text>Play</text>
+                }
+                else
+                {
+                    <text>Watch</text>
+                }
+            </button>
+            <button class="btn btn-outline-@cardTheme text-light" onclick="window.location.href = '/@Model.ContentId/download'">
+                <i class="fa fa-download me-1"></i>
+                Download
+            </button>
+        </div>
+        <div class="col-12 col-sm-auto btn-group btn-group-lg mt-4">
+            <button class="btn btn-outline-@cardTheme text-light" onclick="copyToClipboard(`${getBaseURL()}/@Model.ContentId/media`)">
+                <i class="fa fa-copy me-1"></i>
+                Copy direct link
+            </button>
+            <button class="btn btn-outline-@cardTheme text-light" onclick="copyToClipboard(`${getBaseURL()}/@Model.ContentId`)">
+                <i class="fa fa-share me-1"></i>
+                Share
+            </button>
+        </div>
+    </div>
 }
 
 

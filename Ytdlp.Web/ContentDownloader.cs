@@ -7,6 +7,7 @@ using YoutubeDLSharp;
 using YoutubeDLSharp.Metadata;
 using YoutubeDLSharp.Options;
 using Ytdlp.Web.Data;
+using Ytdlp.Web.Extensions;
 using Ytdlp.Web.Hubs;
 
 namespace Ytdlp.Web;
@@ -43,7 +44,7 @@ public static class ContentDownloaderContextHolder
         }
         _previousProgress = progress;
         
-        Console.WriteLine($"Sending update: {contentGuid}, '{progress.Data}', {progress.Progress}, '{progress.ETA}', {progressRevision}, '{progress.State.ToString()}'");
+        Console.WriteLine($"Sending update: {contentGuid}, '{progress.Data}', {progress.Progress}, '{progress.ETA}', {progressRevision}, '{progress.State.ToString().SplitOnUpperCase()}'");
         await Hub.Clients.Group(contentGuid).SendCoreAsync("updateProgress", DownloadProgressHub.BuildArgs(progress, progressRevision));
     }
 
@@ -184,7 +185,11 @@ public class ContentDownloader : Content
                 ContentType.Video => await ytdl.RunVideoDownload(
                     contentUrl,
                     recodeFormat: VideoRecodeFormat.Mp4,
-                    progress: progress
+                    progress: progress,
+                    overrideOptions: new()
+                    {
+                        NoSponsorblock = true,
+                    }
                 ),
                 ContentType.Audio => await ytdl.RunAudioDownload(
                     contentUrl,

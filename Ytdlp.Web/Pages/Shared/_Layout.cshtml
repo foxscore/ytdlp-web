@@ -4,41 +4,41 @@
     <meta charset="utf-8"/>
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>@(string.IsNullOrEmpty((string?)ViewData["Title"]) ? "YT-DLP Online" : ViewData["Title"])</title>
+    <link rel="icon" href="/favicon.jpg" sizes="1080x1080"/>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="~/css/theme.min.css"/>
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true"/>
     <link rel="stylesheet" href="~/css/font-awesome.css" asp-append-version="true"/>
-    <link rel="stylesheet" href="~/Ytdlp.Web.styles.css" asp-append-version="true"/>
+    @* <link rel="stylesheet" href="~/Ytdlp.Web.styles.css" asp-append-version="true"/> *@
 </head>
-<body>
-<header>
-    <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
-        <div class="container-fluid">
-            <a class="navbar-brand" href="/">yt_dlp_web</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                    aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
-                <ul class="navbar-nav flex-grow-1">
-                    <li class="nav-item">
-                        <a class="nav-link text-dark" href="/">Home</a>
-                    </li>
-                </ul>
+<style>
+    body:not([no-script]) .no-script,
+    body[no-script] main
+    {
+        display: none;
+    }
+</style>
+<body no-script>
+<div class="container">
+    <div class="no-script">
+        <div class="card border-danger text-danger form-check form-switch mt-4">
+            <div class="card-body">
+                <h1 class="mb-0">
+                    JavaScript is required
+                </h1>
             </div>
         </div>
-    </nav>
-</header>
-<div class="container">
-    <main role="main" class="pb-3">
+    </div>
+
+    <main role="main" class="py-3">
         @RenderBody()
     </main>
 </div>
 
-<footer class="border-top footer text-muted">
-    <div class="container">
-        &copy; 2024 - yt_dlp_web - <a asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
-    </div>
-</footer>
+<script>
+    document.body.removeAttribute('no-script');
+</script>
+
 <script src="~/lib/jquery/dist/jquery.min.js"></script>
 <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
 <script src="~/js/site.js" asp-append-version="true"></script>

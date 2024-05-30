@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.SignalR;
 using YoutubeDLSharp;
+using Ytdlp.Web.Extensions;
 
 namespace Ytdlp.Web.Hubs;
 
@@ -10,7 +11,7 @@ public class DownloadProgressHub : Hub
         return
         [
             progressRevision,
-            progress.State.ToString(),
+            progress.State.ToString().SplitOnUpperCase(),
             progress.Progress,
             progress.ETA ?? "",
             progress.Data ?? ""
